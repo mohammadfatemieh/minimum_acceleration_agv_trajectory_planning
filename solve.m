@@ -1,9 +1,9 @@
 function solution = solve(poly_order, der_order, keyframe_list, end_point_cond, vel_bound)
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
-  tolr = 1e-2;
-  step_len = 0.0001;
-  der_len = 0.01;
+  tolr = 2e-4;
+  step_len = 0.1;
+  der_len = 0.001;
   vel_cond = end_point_cond(1 : 2, 4 : 5);
   acc_cond = end_point_cond(1 : 2, 6 : 7);
 
@@ -28,18 +28,24 @@ function solution = solve(poly_order, der_order, keyframe_list, end_point_cond, 
   dir_vec_len = sqrt(1 + 1 / (keyframe_cnt - 2));
   dir_vec = dir_vec' / dir_vec_len;
 
-  while abs(prev_value - cur_value) > tolr
+  while abs((prev_value - cur_value) / prev_value) > tolr
+    step_len = (prev_value - cur_value) / prev_value * 0.1;
     prev_value = cur_value;
     [A, b] = constrain_eq(poly_order, keyframe_list, vel_cond, acc_cond);
-    [poly_coef, cur_value] = quadprog(H, f, [], [], A, b)
-    poly_coef' * H
-    plot_traj(poly_order, poly_coef, keyframe_list);
-    break
+    tic;
+    [poly_coef, cur_value] = quadprog(H, f, [], [], A, b);
+    toc;
+    % DEBUG
+    cur_value
+    % DEBUG
+    % plot_traj(poly_order, poly_coef, keyframe_list);
     grad = zeros(keyframe_cnt, 1);
     for i = 1 : keyframe_cnt - 1
       nkl = new_keyframe_list(keyframe_list, dir_vec(:, i), der_len, i);
       [A, b] = constrain_eq(poly_order, nkl, vel_cond, acc_cond);
+      tic;
       [poly_coef, nxt_value] = quadprog(H, f, [], [], A, b);
+      toc;
       grad += dir_vec(:, i) * (cur_value - nxt_value) / der_len;
     endfor
     keyframe_list(:, time_idx) += prefix_sum(step_len * grad);

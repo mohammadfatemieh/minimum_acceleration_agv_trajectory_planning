@@ -9,10 +9,9 @@ function cost_mat = cost(poly_order, derivative_order, keyframe_list)
 
   cost_blk = zeros(poly_order);
   cost_blk(1 : poly_order - derivative_order, 1 : poly_order - derivative_order) = polynomial' * polynomial;
-  % for i = 1 : poly_order - derivative_order
-  %   cost_blk(i, :) = polyint(cost_blk(i, :), (poly_order - derivative_order) * 2 - i - 1);
-  % end
-  cost_blk
+  for i = 1 : poly_order - derivative_order
+    cost_blk(i, :) = polyint(cost_blk(i, :), (poly_order - derivative_order) * 2 - i - 1);
+  end
 
   cost_mat = cost_subs_t(poly_order, derivative_order, cost_blk, keyframe_list(1, time_idx), keyframe_list(2, time_idx));
   for i = 2 : keyframe_cnt - 1
@@ -30,11 +29,11 @@ endfunction
 
 function cost_blk = cost_subs_t(poly_order, derivative_order, temp_cost_blk, cur_t, nxt_t)
   cost_blk = temp_cost_blk;
-  for i = 1 : poly_order
-    for j = 1 : i
-      cost_blk(j, i + 1 - j) *= ...
-        abs(nxt_t^((poly_order - derivative_order) * 2 - i) ...
-          - cur_t^((poly_order - derivative_order) * 2 - i));
+  for i = 1 : (poly_order - derivative_order)
+    for j = 1 : (poly_order - derivative_order)
+      cost_blk(i, j) *= ...
+        abs(nxt_t^((poly_order - derivative_order) * 2 + 1 - i - j) ...
+          - cur_t^((poly_order - derivative_order) * 2 + 1 - i - j));
     endfor
   endfor
 endfunction

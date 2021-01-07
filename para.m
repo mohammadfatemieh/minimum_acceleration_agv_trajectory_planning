@@ -4,12 +4,12 @@ wheel_distance = 1
 vel_bound = [0.5, 1]
 % format: [r_x, r_y, theta, v_x, v_y, a_x, a_y]
 end_point_cond = [0, 0, 1.57, 0, 1, 0, 0; ...
-                  0, 3,    0, 0, 1, 0, 0;];
-poly_order = 7;
+                  0, 6,    0, 0, 1, 0, 0;];
+poly_order = 6;
 der_order = 2;
-time_seq = [1; 4];
+time_seq = [0; 12];
 keyframe_list = [end_point_cond(:, 1 : 2), time_seq];
-keyframe_list = [keyframe_list(1, :); [-2, 1, 2]; [-2, 2, 3]; keyframe_list(2, :)];
+keyframe_list = [keyframe_list(1, :); [-2, 1, 2]; [-2, 2, 4]; [0, 3, 6]; [2, 4, 8]; [2, 5, 10]; keyframe_list(2, :)];
 keyframe_cnt = size(keyframe_list, 1);
 time_idx = 3;
 low_cnt = 1;
