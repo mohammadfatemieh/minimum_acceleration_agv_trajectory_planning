@@ -1,23 +1,18 @@
-function cost_mat = cost(poly_order, derivative_order, keyframe_list)
+function cost_mat = cost(fourier_order, derivative_order, keyframe_list)
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
 
-  polynomial = ones(1, poly_order);
-  for i = 1 : derivative_order
-    polynomial = polyder(polynomial);
-  end
-
-  cost_blk = zeros(poly_order);
-  cost_blk(1 : poly_order - derivative_order, 1 : poly_order - derivative_order) = polynomial' * polynomial;
-  for i = 1 : poly_order - derivative_order
-    cost_blk(i, :) = polyint(cost_blk(i, :), (poly_order - derivative_order) * 2 - i - 1);
-  end
-
-  cost_mat = cost_subs_t(poly_order, derivative_order, cost_blk, keyframe_list(1, time_idx), keyframe_list(2, time_idx));
-  for i = 2 : keyframe_cnt - 1
-    cost_mat = blkdiag(cost_mat, cost_subs_t(poly_order, derivative_order, cost_blk, keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)));
+  cost_mat = [];
+  for i = 1 : keyframe_cnt - 1
+    L = 2 * (keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx));
+    [A, w, p, type_ind] = fourier_sin(L, fourier_order);
+    for i = 1 : derivative_order
+      [A, w, p, type_ind] = fourier_der(A, w, type_ind);
+    endfor
+    cost_mat = blkdiag(cost_mat, ...
+      fourier_square_int_val(A, w, type_ind, keyframe_list(i + 1, time_idx)), ...
+      fourier_square_int_val(A, w, type_ind, keyframe_list(i, time_idx)))
   endfor
-  cost_mat = blkdiag(cost_mat, cost_mat);
 endfunction
 
 function int_p = polyint(p, order)
@@ -27,13 +22,16 @@ function int_p = polyint(p, order)
   endfor
 endfunction
 
-function cost_blk = cost_subs_t(poly_order, derivative_order, temp_cost_blk, cur_t, nxt_t)
-  cost_blk = temp_cost_blk;
-  for i = 1 : (poly_order - derivative_order)
-    for j = 1 : (poly_order - derivative_order)
-      cost_blk(i, j) *= ...
-        abs(nxt_t^((poly_order - derivative_order) * 2 + 1 - i - j) ...
-          - cur_t^((poly_order - derivative_order) * 2 + 1 - i - j));
-    endfor
+function [int_A, int_w, int_type_ind] = fourier_int(A, w, type_ind)
+  int_A = A ./ w;
+  int_w = w;
+  int_type_ind = type_ind ./ 1i;
+endfunction
+
+function [val] = fourier_square_int_val(A, w, type_ind, x)
+  n = size(A, 1);
+  val = zeros(n, n);
+  for i = 1 : n
+    val(i, i) = - A(i)^2 * (sin(2 * w(i) * x) - 2 * w(i) * x) / (4 * w(i));
   endfor
 endfunction

@@ -31,34 +31,45 @@ function [mat, vec] = constrain_eq(poly_order, keyframe_list, vel_cond, acc_cond
 
     %%%%%%%%%%
     %% A
-    % position
+    L = 2 * (keyframe_list(2, time_idx) - keyframe_list(1, time_idx));
+    [pos_A, pos_w, pos_t] = fourier_sin(L, poly_order);
+    [vel_A, vel_w, vel_t] = fourier_der(pos_A, pos_w, pos_t);
+    [acc_A, acc_w, acc_t] = fourier_der(vel_A, vel_w, vel_t);
     pos_mat = [];
+    vel_mat = zeros(1, poly_order * (keyframe_cnt - 1));
+    vel_mat(1 : poly_order) = fourier_val(vel_A, vel_w, vel_t, keyframe_list(1, time_idx));
+    acc_mat = zeros(1, poly_order * (keyframe_cnt - 1));
+    acc_mat(1 : poly_order) = fourier_val(acc_A, acc_w, acc_t, keyframe_list(1, time_idx));
+    % position
     for i = 1 : keyframe_cnt - 1
+      L = 2 * (keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx));
+      [pos_A, pos_w, pos_t] = fourier_sin(L, poly_order);
       pos_blk = zeros(2, poly_order);
-      pos_blk(1, :) = poly_sub_t(ones(1, poly_order), keyframe_list(i, time_idx));
-      pos_blk(2, :) = poly_sub_t(ones(1, poly_order), keyframe_list(i + 1, time_idx));
+      pos_blk(1, :) = fourier_val(pos_A, pos_w, pos_t, keyframe_list(i, time_idx))';
+      pos_blk(2, :) = fourier_val(pos_A, pos_w, pos_t, keyframe_list(i + 1, time_idx))';
       pos_mat = blkdiag(pos_mat, pos_blk);
     endfor
     % velocity
-    vel_mat = zeros(1, poly_order * (keyframe_cnt - 1));
-    vel_mat(1 : poly_order - 1) = poly_sub_t(vel_poly, keyframe_list(1, time_idx));
     for i = 1 : keyframe_cnt - 2
+      L = 2 * (keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx));
+      [pos_A, pos_w, pos_t] = fourier_sin(L, poly_order);
+      [vel_A, vel_w, vel_t] = fourier_der(pos_A, pos_w, pos_t);
+      [acc_A, acc_w, acc_t] = fourier_der(vel_A, vel_w, vel_t);
       vel_blk = zeros(1, poly_order * (keyframe_cnt - 1));
-      vel_blk((i - 1) * poly_order + 1 : i * poly_order - 1) = poly_sub_t(vel_poly, keyframe_list(i + 1, time_idx));
-      vel_blk(i * poly_order + 1 : (i + 1) * poly_order - 1) = -poly_sub_t(vel_poly, keyframe_list(i + 1, time_idx));
+      vel_blk((i - 1) * poly_order + 1 : i * poly_order) = fourier_val(vel_A, vel_w, vel_t, keyframe_list(i, time_idx));
+      vel_blk(i * poly_order + 1 : (i + 1) * poly_order) = -fourier_val(vel_A, vel_w, vel_t, keyframe_list(i + 1, time_idx));
+      vel_blk
       vel_mat = [vel_mat; vel_blk];
-    endfor
-    vel_mat(size(vel_mat, 1) + 1, (keyframe_cnt - 2) * poly_order + 1 : (keyframe_cnt - 1) * poly_order - 1) = poly_sub_t(vel_poly, keyframe_list(keyframe_cnt, time_idx));
-    % acceleration
-    acc_mat = zeros(1, poly_order * (keyframe_cnt - 1));
-    acc_mat(1 : poly_order - 2) = poly_sub_t(acc_poly, keyframe_list(1, time_idx));
-    for i = 1 : keyframe_cnt - 2
+
+      % acceleration
       acc_blk = zeros(1, poly_order * (keyframe_cnt - 1));
-      acc_blk((i - 1) * poly_order + 1 : i * poly_order - 2) = poly_sub_t(acc_poly, keyframe_list(i + 1, time_idx));
-      acc_blk(i * poly_order + 1 : (i + 1) * poly_order - 2) = -poly_sub_t(acc_poly, keyframe_list(i + 1, time_idx));
+      acc_blk((i - 1) * poly_order + 1 : i * poly_order) = fourier_val(acc_A, acc_w, acc_t, keyframe_list(i, time_idx));
+      acc_blk(i * poly_order + 1 : (i + 1) * poly_order) = -fourier_val(acc_A, acc_w, acc_t, keyframe_list(i + 1, time_idx));
+      acc_blk
       acc_mat = [acc_mat; acc_blk];
     endfor
-    acc_mat(size(acc_mat, 1) + 1, (keyframe_cnt - 2) * poly_order + 1 : (keyframe_cnt - 1) * poly_order - 2) = poly_sub_t(acc_poly, keyframe_list(keyframe_cnt, time_idx));
+    vel_mat(size(vel_mat, 1) + 1, (keyframe_cnt - 2) * poly_order + 1 : (keyframe_cnt - 1) * poly_order) = fourier_val(vel_A, vel_w, vel_t, keyframe_list(keyframe_cnt, time_idx));
+    acc_mat(size(acc_mat, 1) + 1, (keyframe_cnt - 2) * poly_order + 1 : (keyframe_cnt - 1) * poly_order) = fourier_val(acc_A, acc_w, acc_t, keyframe_list(keyframe_cnt, time_idx));
 
     sub_mat = [pos_mat; vel_mat; acc_mat];
     mat = blkdiag(mat, sub_mat);
