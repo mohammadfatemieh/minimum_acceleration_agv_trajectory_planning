@@ -8,7 +8,7 @@ function solution = solve(poly_order, der_order, keyframe_list, end_point_cond, 
   acc_cond = end_point_cond(1 : 2, 6 : 7);
 
   H = cost(poly_order, der_order, keyframe_list);
-  f = zeros(2 * (keyframe_cnt - 1) * poly_order, 1);
+  f = zeros(2 * (keyframe_cnt - 1) * (2 * poly_order + 1), 1);
 
   if keyframe_cnt == 2
     [A, b] = constrain_eq(poly_order, keyframe_list, vel_cond, acc_cond);
@@ -31,6 +31,8 @@ function solution = solve(poly_order, der_order, keyframe_list, end_point_cond, 
   while abs((prev_value - cur_value) / prev_value) > tolr
     step_len = (prev_value - cur_value) / prev_value * 0.1;
     prev_value = cur_value;
+    vel_cond
+    acc_cond
     [A, b] = constrain_eq(poly_order, keyframe_list, vel_cond, acc_cond);
     tic;
     [poly_coef, cur_value] = quadprog(H, f, [], [], A, b);

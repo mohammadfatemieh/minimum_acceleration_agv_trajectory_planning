@@ -11,7 +11,7 @@ classdef trigonometric
   endproperties
   methods
     function f = trigonometric(is_sin, amplitude, angular_frequency, phase_shift, vertical_shift)
-      f.is_sin = logical(is_sin);
+      f.is_sin = is_sin;
       f.amplitude = amplitude;
       f.angular_frequency = angular_frequency;
       f.phase_shift = phase_shift;
@@ -20,23 +20,38 @@ classdef trigonometric
     function period = get.period(obj)
       period = 2 * pi / obj.angular_frequency;
     endfunction
+    function f = change_amplitude(obj, new_amplitude)
+      f = trigonometric(obj.is_sin, ...
+                        new_amplitude, ...
+                        obj.angular_frequency, ...
+                        obj.phase_shift, ...
+                        obj.vertical_shift);
+    endfunction
     function val = value(obj, x)
-      if obj.is_sin
+      if obj.is_sin == 1 + 0i
         val = obj.amplitude * sin(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
       else
-        val = obj.amplitude * cos(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
+        if obj.is_sin == 0 + 1i
+          val = obj.amplitude * cos(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
+        else
+          if obj.is_sin == -1 + 0i
+            val = -obj.amplitude * sin(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
+          else % obj.is_sin == 0 - 1i
+            val = -obj.amplitude * cos(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
+          endif
+        endif
       endif
     endfunction
     function der_trig = derivative(obj)
       if obj.is_sin
-        der_trig = trigonometric(~obj.is_sin, ...
+        der_trig = trigonometric(obj.is_sin * i, ...
                                  obj.amplitude * obj.angular_frequency, ...
                                  obj.angular_frequency, ...
                                  obj.phase_shift, ...
                                  polyder(obj.vertical_shift));
       else
-        der_trig = trigonometric(~obj.is_sin, ...
-                                 -obj.amplitude * obj.angular_frequency, ...
+        der_trig = trigonometric(obj.is_sin * i, ...
+                                 obj.amplitude * obj.angular_frequency, ...
                                  obj.angular_frequency, ...
                                  obj.phase_shift, ...
                                  polyder(obj.vertical_shift));
