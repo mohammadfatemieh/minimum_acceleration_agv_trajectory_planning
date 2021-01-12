@@ -105,11 +105,12 @@ der_order = 2;
 assumed_velocity = 1;
 time_idx = 3;
 end_point_cond = [start_point(1, :), 0, 0, 1, 0, 0;
-                  end_point(1, :),   0, 0, 1, 0, 0;];
+                  end_point(1, :),   0, 1, 0, 0, 0;];
 keyframe_list = [start_point, 0; end_point, norm(diff(end_point)) / assumed_velocity]
 keyframe_cnt = size(keyframe_list, 1);
 [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, [0.5, 1.5]);
 plot_traj(fourier_order, solution, keyframe_list);
+drawnow;
 
 if verify(fourier_order, solution, keyframe_list, dangerous_region)
   return;
@@ -137,8 +138,22 @@ endif
 
 [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, [0.5, 1.5]);
 plot_traj(fourier_order, solution, keyframe_list);
+drawnow;
 
-hold off;
+keyframe_cnt = size(keyframe_list, 1);
 hold on;
-
+for i = 1 : keyframe_cnt - 1
+  time_sample = linspace(keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx), round((keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx)) / 0.1));
+  pos_x_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
+  pos_x_f = pos_x_f.scale(solution((i - 1) * fourier_size + 1 : i * fourier_size, 1)');
+  pos_y_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
+  pos_y_f = pos_y_f.scale(solution((i - 1 + keyframe_cnt - 1) * fourier_size + 1 : (i + keyframe_cnt - 1) * fourier_size, 1)');
+  for j = 1 : length(time_sample)
+    pos_x = sum(pos_x_f.value(time_sample(j)))
+    pos_y = sum(pos_y_f.value(time_sample(j)))
+    plot(sum(pos_x_f.value(time_sample(j))), sum(pos_y_f.value(time_sample(j))), 'bo');
+    drawnow;
+    input('');
+  endfor
+endfor
 hold off;
