@@ -5,10 +5,11 @@ function cost_mat = cost(fourier_order, derivative_order, keyframe_list)
   cost_mat = [];
   for i = 1 : keyframe_cnt - 1
     f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
-    for i = 1 : derivative_order
+    for _ = 1 : derivative_order
       f = f.derivative;
     endfor
     cost_mat = blkdiag(cost_mat, ...
+      % f.mul_der_int_value(keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)));
       diag(f.square_int_value(keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx))));
   endfor
   cost_mat = blkdiag(cost_mat, cost_mat);

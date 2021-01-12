@@ -1,8 +1,8 @@
 function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound)
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
-  tolr = 1e-5;
-  step_len = 0.0001;
+  tolr = 1e-3;
+  step_len = 0.001;
   der_len = 0.01;
   vel_cond = end_point_cond(1 : 2, 4 : 5);
   acc_cond = end_point_cond(1 : 2, 6 : 7);
@@ -23,6 +23,7 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     return;
   endif
 
+  tic;
   g(:, 1) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
   s(:, 1) = step_len * g(:, 1);
   keyframe_list(:, time_idx) += prefix_sum(s(:, 1));
@@ -31,8 +32,10 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   g(:, 2) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
   y(:, 1) = g(:, 2) - g(:, 1);
   rho(1) = 1 / (y(:, 1)' * s(:, 1));
+  toc;
 
   for k = 2 : m
+    tic;
     alpha = zeros(1, m);
     beta = zeros(1, m);
     q = g(:, k);
@@ -40,7 +43,6 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
       alpha(i) = rho(i) * s(:, i)' * q;
       q = q - alpha(i) * y(:, i);
     endfor
-    gamma = (s(:, k - 1)' * y(:, k - 1))
     H0 = (s(:, k - 1)' * y(:, k - 1)) / (y(:, k - 1)' * y(:, k - 1)) * diag(ones(1, keyframe_cnt));
     z = H0 * q;
     for i = 1 : max(m, k - 1)
@@ -52,12 +54,14 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     keyframe_list(:, time_idx) += prefix_sum(s(:, k));
     prev_value = cur_value;
     [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+    cur_value
     if (prev_value - cur_value) / prev_value <= tolr
       break;
     endif
     g(:, k + 1) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
     y(:, k) = g(:, k + 1) - g(:, k);
     rho(k) = 1 / (y(:, k)' * s(:, k));
+    toc;
   endfor
 
   % cnt = 1
