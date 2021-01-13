@@ -17,7 +17,8 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   prev_value = 127;
   cur_value = -128;
 
-  [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+  [solution, fval] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+  cur_value = target(fourier_order, solution, fval, keyframe_list);
 
   if keyframe_cnt == 2
     return;
@@ -29,6 +30,9 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   keyframe_list(:, time_idx) += prefix_sum(s(:, 1));
   prev_value = cur_value;
   [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+  [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list);
+  cur_value = (min_vel - vel_bound(1))^2 + (max_vel - vel_bound(2))^2;
+  % cur_value = max_vel - min_vel;
   g(:, 2) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
   y(:, 1) = g(:, 2) - g(:, 1);
   rho(1) = 1 / (y(:, 1)' * s(:, 1));
@@ -53,7 +57,8 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     s(:, k) = z;
     keyframe_list(:, time_idx) += prefix_sum(s(:, k));
     prev_value = cur_value;
-    [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+    [solution, fval] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+    cur_value = target(fourier_order, solution, fval, keyframe_list);
     cur_value
     if (prev_value - cur_value) / prev_value <= tolr
       break;
@@ -101,7 +106,8 @@ function grad = gradient(fourier_order, der_order, der_len, keyframe_list, end_p
   grad = zeros(keyframe_cnt, 1);
   for i = 1 : keyframe_cnt - 1
     nkl = new_keyframe_list(keyframe_list, dir_vec(:, i), der_len, i);
-    [solution, nxt_value] = solve(fourier_order, der_order, nkl, end_point_cond, vel_bound);
+    [solution, fval] = solve(fourier_order, der_order, nkl, end_point_cond, vel_bound);
+    nxt_value = target(fourier_order, solution, fval, keyframe_list);
     grad += dir_vec(:, i) * (cur_value - nxt_value) / der_len;
   endfor
 endfunction
@@ -117,4 +123,10 @@ function new = new_keyframe_list(old, dir_vec, der_len, i)
   keyframe_cnt = size(old, 1);
   new = old;
   new(:, 3) += der_len * prefix_sum(dir_vec);
+endfunction
+
+function value = target(fourier_order, solution, fval, keyframe_list);
+  [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list);
+  value = max_vel - min_vel;
+  % value = fval;
 endfunction
