@@ -1,5 +1,0 @@
-geometry = input('geometry [x, y]: ')
-wheel_radius = input('wheel radius: ')
-wheel_distance = input('wheel distance: ')
-velocity_bound = input('velocity boundary [min, max]: ')
-start_point = input('start point [x, y, theta]: ')
