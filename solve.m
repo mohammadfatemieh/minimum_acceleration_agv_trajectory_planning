@@ -10,6 +10,10 @@ function [solution, value] = solve(fourier_order, der_order, keyframe_list, end_
   [A, b] = constrain_eq(fourier_order, keyframe_list, vel_cond, acc_cond);
   %[Aieq, bieq] = constrain_ieq(fourier_order, keyframe_list);
   %[solution, value] = quadprog(H, f, [], [], A, b, -3 * ones(2 * (keyframe_cnt - 1) * fourier_size, 1), 3 * ones(2 * (keyframe_cnt - 1) * fourier_size, 1));
+  if isreal(H) ~= 1 || isreal(A) ~= 1 || isreal(b) ~= 1
+    keyframe_list
+    input('');
+  endif
   [solution, value] = quadprog(H, f, [], [], A, b);
   %[solution, value] = quadprog(H, f, Aieq, bieq, A, b);
 endfunction

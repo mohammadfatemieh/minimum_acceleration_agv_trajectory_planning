@@ -2,8 +2,8 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
   tolr = 1e-3;
-  step_len = 0.001;
-  der_len = 0.01;
+  step_len = 0.0000001;
+  der_len = 0.000001;
   vel_cond = end_point_cond(1 : 2, 4 : 5);
   acc_cond = end_point_cond(1 : 2, 6 : 7);
   m = 20;
@@ -18,7 +18,7 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   cur_value = -128;
 
   [solution, fval] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-  cur_value = target(fourier_order, solution, fval, keyframe_list);
+  cur_value = target(fourier_order, solution, fval, keyframe_list, vel_bound);
 
   if keyframe_cnt == 2
     return;
@@ -58,7 +58,7 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     keyframe_list(:, time_idx) += prefix_sum(s(:, k));
     prev_value = cur_value;
     [solution, fval] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-    cur_value = target(fourier_order, solution, fval, keyframe_list);
+    cur_value = target(fourier_order, solution, fval, keyframe_list, vel_bound);
     cur_value
     if (prev_value - cur_value) / prev_value <= tolr
       break;
@@ -69,25 +69,6 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     toc;
   endfor
 
-  % cnt = 1
-  % while abs((prev_value - cur_value) / prev_value) > tolr
-  %   step_len = sqrt((prev_value - cur_value) / prev_value) * 0.0001 * cnt^2;
-  %   prev_value = cur_value;
-  %   grad = zeros(keyframe_cnt, 1);
-  %   for i = 1 : keyframe_cnt - 1
-  %     nkl = new_keyframe_list(keyframe_list, dir_vec(:, i), der_len, i);
-  %     [solution, nxt_value] = solve(fourier_order, der_order, nkl, end_point_cond, vel_bound);
-  %     grad += dir_vec(:, i) * (cur_value - nxt_value) / der_len;
-  %   endfor
-  %   keyframe_list(:, time_idx) += prefix_sum(step_len * grad);
-  %   keyframe_list
-  %   cnt += 1;
-  %   [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-  %   % DEBUG
-  %   cur_value
-  %   % plot_traj(fourier_order, solution, keyframe_list);
-  %   % DEBUG
-  % endwhile
   plot_traj(fourier_order, solution, keyframe_list);
 endfunction
 
@@ -107,7 +88,7 @@ function grad = gradient(fourier_order, der_order, der_len, keyframe_list, end_p
   for i = 1 : keyframe_cnt - 1
     nkl = new_keyframe_list(keyframe_list, dir_vec(:, i), der_len, i);
     [solution, fval] = solve(fourier_order, der_order, nkl, end_point_cond, vel_bound);
-    nxt_value = target(fourier_order, solution, fval, keyframe_list);
+    nxt_value = target(fourier_order, solution, fval, keyframe_list, vel_bound);
     grad += dir_vec(:, i) * (cur_value - nxt_value) / der_len;
   endfor
 endfunction
@@ -125,8 +106,8 @@ function new = new_keyframe_list(old, dir_vec, der_len, i)
   new(:, 3) += der_len * prefix_sum(dir_vec);
 endfunction
 
-function value = target(fourier_order, solution, fval, keyframe_list);
+function value = target(fourier_order, solution, fval, keyframe_list, vel_bound);
   [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list);
-  value = max_vel - min_vel;
-  % value = fval;
+  value = ((max_vel - min_vel) / diff(vel_bound))^6;
+  %value = fval;
 endfunction

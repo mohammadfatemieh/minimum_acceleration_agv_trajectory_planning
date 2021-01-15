@@ -1,4 +1,39 @@
+% octave only
 pkg load optim;
+
+% - **曲线路径规划**：给定一个双轮差速驱动机器人，和路径的起止点，实现机器人的曲线路径规划，包括轨迹规划、速度规划等；
+%   - 输入：
+%     - 机器人参数，如大小、轮半径、左右轮的轮距，最大/最小速度；
+%     - 路径起止点 (x, y) 和/或障碍物信息（障碍物的横向大小）：
+%     - 机器人当前位姿 (x, y, theta)，和左右轮速度；
+%   - 输出：
+%     - 机器人当前时刻的速度（矢量）；
+%   - 要求：
+%     - 根据输入信息，完成机器人的曲线路径规划，要求曲线（分段）光滑，一阶可微（即速度连续）；
+%     - 根据输入信息，完成机器人的加速度、速度规划，给出当前时刻机器人应有的速度；
+%     - **改变目标点，实时进行机器人的路径重规划，并给出当前时刻的速度；**
+%     - 实现语言： c++, python, matlab 均可；
+%   - 参考文献：
+%     - Minimum Snap Trajectory Generation and Control for Quadrotors
+
+global vel_bound end_point_vel end_point_theta;
+
+% Get Input from user
+geometry = [1, 1];
+geometry = input('geometry (e.g. [x, y]): ');
+wheel_radius = 0.05;
+wheel_radius = input('radius of the wheel: ');
+wheel_distance = 1;
+wheel_distance = input('distance between two wheels: ');
+vel_bound = [0.8, 1.2];
+vel_bound = input('velocity boundary (e.g. [lb, rb]): ');
+start_point_theta = input('theta at the start point: ');
+end_point_theta = input('theta at the end point: ');
+start_point_vel = input('velocity at the start point (magnitude): ');
+end_point_vel = input('velocity at the end point (magnitude): ');
+start_point_vel = [cos(start_point_theta) * start_point_vel, sin(start_point_theta) * start_point_vel];
+end_point_vel = [cos(end_point_theta) * end_point_vel, sin(end_point_theta) * end_point_vel];
+
 figure(1);
 
 function set_obstacle_cb(h, ~)
@@ -51,9 +86,10 @@ function result = is_intersected(seg_a, seg_b)
   endif
 endfunction
 
+% Initialize graphical user interface
 grid on; hold on;
 xlabel('X-Y Plane');
-axis([-5 20 -12.5 12.5]);
+axis([-10 10 -10 10]);
 global is_obstacle obstacle obstacle_done;
 obstacle = zeros(2);
 is_obstacle = logical(0);
@@ -78,94 +114,177 @@ while start_end_done ~= logical(1)
 endwhile
 disp('Done start and end point setting.');
 
-% start_obstacle_vec = [(start_point(1) - obstacle(1, 1)), (start_point(2) - obstacle(1, 2))];
-% start_cross_obstacle = cross2d(start_obstacle_vec, obstacle_vec);
-% obstacle_complex = obstacle_vec(1) + obstacle_vec(2) * 1i;
-% obstacle_complex *= 1i;
-% new_obstacle_vec = [real(obstacle_complex), imag(obstacle_complex)]
-% obstacle_cross_obstacle = cross2d(new_obstacle_vec, obstacle_vec);
-% if obstacle_cross_obstacle * start_cross_obstacle > 0
-%   new_obstacle_vec = -new_obstacle_vec;
-% endif
-% dangerous_region = [obstacle; obstacle(1, :) + new_obstacle_vec; obstacle(2, :) + new_obstacle_vec];
-% dangerous_region_center = sum(dangerous_region) / 4;
-% for i = 4 : -1 : 1
-%   center_vertex_vec = (dangerous_region(i, :) - dangerous_region_center);
-%   center_vertex_vec = center_vertex_vec / norm(center_vertex_vec);
-%   dangerous_region(i, :) = dangerous_region(mod(i + 1, 2) + 1, :) + 2 * center_vertex_vec;
-%   %dangerous_region(i, :) += center_vertex_vec;
-%   plot(dangerous_region(i, 1), dangerous_region(i, 2), 'ro');
-% endfor
-
 drawnow;
 
-fourier_order = 5;
+global keyframe_list;
+
+fourier_order = 3;
 fourier_size = 2 * fourier_order + 1;
 der_order = 2;
 time_idx = 3;
-start_point = [start_point(1, :), 0, 0, 1, 0, 0];
-end_point = [end_point(1, :),   0, 0, 1, 0, 0];
-vel_bound = [0.8, 1];
+start_point = [start_point(1, :), start_point_theta, start_point_vel, 0, 0];
+end_point = [end_point(1, :), end_point_theta, end_point_vel, 0, 0];
 assumed_velocity = sum(vel_bound) / 2;
 
-safe_distance = 1;
+safe_distance = norm(geometry) * 1.5;
 
-for k = 1 : 100
-  [keyframe_list, end_point_cond] = init_plan(obstacle, safe_distance, start_point, end_point, vel_bound, assumed_velocity);
+% First attemp
+
+%[keyframe_list, end_point_cond, dangerous_region] = init_plan(obstacle, 0, safe_distance, start_point, end_point, vel_bound, assumed_velocity);
+%[solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+%if verify(fourier_order, solution, keyframe_list, dangerous_region)
+%  plot_traj(fourier_order, solution, keyframe_list);
+%else
+%  [keyframe_list, end_point_cond, dangerous_region] = init_plan(obstacle, 1, safe_distance, start_point, end_point, vel_bound, assumed_velocity);
+%  [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+%endif
+
+global dangerous_region;
+
+for cnt = 0 : 2
+  dangerous_region = obstacle_control_point(obstacle, safe_distance, start_point);
+  [keyframe_list, end_point_cond, dangerous_region] = init_plan( ...
+    dangerous_region, ...
+    cnt, ...
+    start_point, ...
+    end_point, ...
+    vel_bound, ...
+    assumed_velocity);
   [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-  plot_traj(fourier_order, solution, keyframe_list);
-  [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list)
-  if (max_vel - min_vel) / (max_vel + min_vel) < diff(vel_bound) / sum(vel_bound)
-    break;
-  else
-    safe_distance += 0.2;
+  [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
+  if verify(fourier_order, solution, keyframe_list, dangerous_region)
+    if (max_vel + min_vel) > sum(vel_bound)
+      keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
+      for k = 1 : 3
+        [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+        %plot_traj(fourier_order, solution, keyframe_list);
+        [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
+        if (max_vel + min_vel) > sum(vel_bound)
+          %keyframe_list(:, 3) *= max_vel / vel_bound(2);
+          keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
+        else
+          break;
+        endif
+      endfor
+    else
+      return;
+    endif
   endif
 endfor
+plot_traj(fourier_order, solution, keyframe_list);
 
-%end_point_cond = [start_point(1, :), 0, 0, 1, 0, 0;
-%                  end_point(1, :),   0, 0, 1, 0, 0;];
-%vel_bound = [0.8, 1.2];
-%assumed_velocity = sum(vel_bound) / length(vel_bound);
-%keyframe_list = [start_point, 0; end_point, norm(diff(end_point)) / assumed_velocity]
-%keyframe_cnt = size(keyframe_list, 1);
-%[solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, [0.5, 1.5]);
-%plot_traj(fourier_order, solution, keyframe_list);
-%drawnow;
-%
-%if verify(fourier_order, solution, keyframe_list, dangerous_region) == 0
-%  keyframe_list = zeros(4, 3, 2);
-%
-%  for k = 1 : 2
-%    obstacle_control_point = [dangerous_region(k, :);
-%                              dangerous_region(k + 2, :)];
-%    keyframe_list(:, 1 : 2, k) = [start_point; obstacle_control_point; end_point];
-%
-%    % Rough plan of time
-%    keyframe_list(1, 3, k) = 0;
-%    for i = 2 : size(keyframe_list, 1)
-%      keyframe_list(i, 3, k) = sqrt(sum((keyframe_list(i, 1 : 2, k) - keyframe_list(i - 1, 1 : 2, k)).^2)) / assumed_velocity + keyframe_list(i - 1, 3, k);
-%    endfor
-%  endfor
-%
-%  if keyframe_list(4, 3, 1) < keyframe_list(4, 3, 2)
-%    keyframe_list = keyframe_list(:, :, 1);
-%  else
-%    keyframe_list = keyframe_list(:, :, 2);
-%  endif
-%
-%  [solution, _] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-%  [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list);
-%  if max_vel - min_vel > diff(vel_bound)
-%  endif
-%
-%  [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, [0.5, 1.5]);
-%  plot_traj(fourier_order, solution, keyframe_list);
-%  drawnow;
-%endif
+global current_time current_pos current_vel current_stage;
+
+function change_end_point_cb(h, ~)
+  global start_point end_point obstacle;
+  global current_time current_pos current_vel current_stage;
+  global keyframe_list vel_bound end_point_vel end_point_theta;
+  global vel_x vel_y time_sample;
+  global dangerous_region;
+  figure(2);
+  hold on;
+  plot(time_sample, sqrt(vel_x .^ 2 + vel_y .^ 2));
+  drawnow;
+  hold off;
+  click_type = get(h, 'selectiontype');
+  figure(1);
+  pos = get(gca, 'CurrentPoint')
+  if strcmp(click_type, 'normal')
+    figure(1);
+    hold on;
+    plot(pos(1, 1), pos(1, 2), 'bo');
+    drawnow;
+    hold off;
+    fourier_order = 5;
+    fourier_size = 2 * fourier_order + 1;
+    der_order = 2;
+    time_idx = 3;
+    assumed_velocity = sum(vel_bound) / 2
+    safe_distance = 1;
+    start_point = [current_pos, 0, current_vel, 0, 0]
+    end_point = [pos(1, 1 : 2), end_point_theta, end_point_vel, 0, 0]
+    end_point_cond = [start_point; end_point];
+    old_keyframe_list = keyframe_list;
+    for cnt = 0 : size(old_keyframe_list, 1) - 1 - current_stage
+      %keyframe_list = zeros(size(keyframe_list, 1) - current_stage + 1, 3);
+      keyframe_list = zeros(cnt + 2, 3);
+      keyframe_list(:, 1 : 2) = [start_point(1 : 2); old_keyframe_list(current_stage + 1 : current_stage + cnt, 1 : 2); end_point(1 : 2);];
+      keyframe_list(1, 3) = current_time;
+      for i = 2 : size(keyframe_list, 1)
+        keyframe_list(i, 3) = sqrt(sum((keyframe_list(i, 1 : 2) - keyframe_list(i - 1, 1 : 2)).^2)) / assumed_velocity + keyframe_list(i - 1, 3);
+      endfor
+      [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+      [max_vel, min_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
+      if verify(fourier_order, solution, keyframe_list, dangerous_region)
+        if (max_vel + min_vel) > sum(vel_bound)
+          keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
+          for k = 1 : 3
+            [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
+            [max_vel, min_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
+            if (max_vel + min_vel) > sum(vel_bound)
+              keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
+            else
+              break;
+            endif
+          endfor
+        else
+          break;
+        endif
+      else
+        continue;
+      endif
+    endfor
+    figure(1);
+    hold on;
+    plot_traj(fourier_order, solution, keyframe_list);
+    hold off;
+    keyframe_cnt = size(keyframe_list, 1);
+    for i = 1 : keyframe_cnt - 1
+      current_stage = i;
+      time_sample = linspace(keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx), round((keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx)) / 0.1));
+      pos_x_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
+      pos_x_f = pos_x_f.scale(solution((i - 1) * fourier_size + 1 : i * fourier_size, 1)');
+      pos_y_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
+      pos_y_f = pos_y_f.scale(solution((i - 1 + keyframe_cnt - 1) * fourier_size + 1 : (i + keyframe_cnt - 1) * fourier_size, 1)');
+      vel_x_f = pos_x_f.derivative;
+      vel_x = zeros(1, length(time_sample));
+      vel_y_f = pos_y_f.derivative;
+      vel_y = zeros(1, length(time_sample));
+      for j = 1 : length(time_sample)
+        vel_x(j) = sum(vel_x_f.value(time_sample(j)));
+        vel_y(j) = sum(vel_y_f.value(time_sample(j)));
+        pos_x = sum(pos_x_f.value(time_sample(j)));
+        pos_y = sum(pos_y_f.value(time_sample(j)));
+        current_pos = [pos_x, pos_y];
+        current_vel = [vel_x(j), vel_y(j)];
+        disp([current_vel, norm(current_vel)]);
+        figure(1);
+        hold on;
+        plot(sum(pos_x_f.value(time_sample(j))), sum(pos_y_f.value(time_sample(j))), 'bo');
+        drawnow;
+        hold off;
+        input('');
+      endfor
+      figure(2);
+      hold on;
+      plot(time_sample, sqrt(vel_x .^ 2 + vel_y .^ 2));
+      hold off;
+    endfor
+    hold off;
+    while logical(1)
+      input('');
+    end
+    exit;
+  endif
+endfunction
+
+set(gcf, 'WindowButtonDownFcn', @change_end_point_cb);
 
 keyframe_cnt = size(keyframe_list, 1);
 hold on;
 for i = 1 : keyframe_cnt - 1
+  global time_sample vel_x vel_y;
+  current_stage = i;
   time_sample = linspace(keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx), round((keyframe_list(i + 1, time_idx) - keyframe_list(i, time_idx)) / 0.1));
   pos_x_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
   pos_x_f = pos_x_f.scale(solution((i - 1) * fourier_size + 1 : i * fourier_size, 1)');
@@ -178,8 +297,12 @@ for i = 1 : keyframe_cnt - 1
   for j = 1 : length(time_sample)
     vel_x(j) = sum(vel_x_f.value(time_sample(j)));
     vel_y(j) = sum(vel_y_f.value(time_sample(j)));
-    pos_x = sum(pos_x_f.value(time_sample(j)))
-    pos_y = sum(pos_y_f.value(time_sample(j)))
+    pos_x = sum(pos_x_f.value(time_sample(j)));
+    pos_y = sum(pos_y_f.value(time_sample(j)));
+    current_time = time_sample(j);
+    current_pos = [pos_x, pos_y];
+    current_vel = [vel_x(j), vel_y(j)];
+    disp([current_vel, norm(current_vel)]);
     figure(1);
     hold on;
     plot(sum(pos_x_f.value(time_sample(j))), sum(pos_y_f.value(time_sample(j))), 'bo');
@@ -188,15 +311,6 @@ for i = 1 : keyframe_cnt - 1
     input('');
   endfor
   figure(2);
-  subplot(2, 1, 1);
-  hold on;
-  plot(time_sample, vel_x);
-  hold off;
-  subplot(2, 1, 2);
-  hold on;
-  plot(time_sample, vel_y);
-  hold off;
-  figure(3);
   hold on;
   plot(time_sample, sqrt(vel_x .^ 2 + vel_y .^ 2));
   hold off;

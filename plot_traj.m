@@ -34,9 +34,9 @@ function plot_traj(fourier_order, coef_list, keyframe_list)
     % plot(v_y_f);
     % plot(t_seq, v_x);
     % plot(t_seq, v_y);
-    hold on
+    hold on;
     plot(r_x, r_y);
     %plot(t_seq, sqrt(v_x.^2 + v_y.^2));
-    hold off
+    hold off;
   endfor
 endfunction

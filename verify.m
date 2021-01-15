@@ -1,6 +1,6 @@
 function result = verify(fourier_order, coef_list, keyframe_list, dangerous_region)
   fourier_size = 2 * fourier_order + 1;
-  keyframe_cnt = size(keyframe_list + 1);
+  keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
   result = logical(1);
   time_sample = linspace(keyframe_list(1, time_idx), keyframe_list(2, time_idx), 10);
@@ -14,7 +14,7 @@ function result = verify(fourier_order, coef_list, keyframe_list, dangerous_regi
     pos_x(k) = sum(pos_x_f.value(time_sample(k)));
     pos_y(k) = sum(pos_y_f.value(time_sample(k)));
     if k >= 2
-      trajectory_seg = [pos_x(k - 1), pos_y(k - 1); pos_x(k), pos_y(k)]
+      trajectory_seg = [pos_x(k - 1), pos_y(k - 1); pos_x(k), pos_y(k)];
       intersect_ret = logical(0);
       intersect_ret = intersect_ret || is_intersected(trajectory_seg, [dangerous_region(1, :); dangerous_region(2, :)]);
       intersect_ret = intersect_ret || is_intersected(trajectory_seg, [dangerous_region(1, :); dangerous_region(3, :)]);
