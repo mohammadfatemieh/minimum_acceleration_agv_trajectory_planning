@@ -1,4 +1,4 @@
-function [keyframe_list_with_time, end_point_cond, dangerous_region] = init_plan(control_point_list, control_point_cnt, start_point, end_point, vel_bound, assumed_velocity)
+function [keyframe_list_with_time, end_point_cond] = init_plan(control_point_list, control_point_cnt, start_point, end_point, vel_bound, assumed_velocity)
   %obstacle_vec = [(obstacle(2, 1) - obstacle(1, 1)), (obstacle(2, 2) - obstacle(1, 2))];
   %start_obstacle_vec = [(start_point(1) - obstacle(1, 1)), (start_point(2) - obstacle(1, 2))];
   %start_cross_obstacle = cross2d(start_obstacle_vec, obstacle_vec);

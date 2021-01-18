@@ -4,7 +4,7 @@ function control_point_list  = obstacle_control_point(obstacle, safe_distance, s
   start_cross_obstacle = cross2d(start_obstacle_vec, obstacle_vec);
   obstacle_complex = obstacle_vec(1) + obstacle_vec(2) * 1i;
   obstacle_complex *= 1i;
-  new_obstacle_vec = [real(obstacle_complex), imag(obstacle_complex)]
+  new_obstacle_vec = [real(obstacle_complex), imag(obstacle_complex)];
   obstacle_cross_obstacle = cross2d(new_obstacle_vec, obstacle_vec);
   if obstacle_cross_obstacle * start_cross_obstacle > 0
     new_obstacle_vec = -new_obstacle_vec;
