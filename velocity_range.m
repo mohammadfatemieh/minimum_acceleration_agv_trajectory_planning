@@ -1,4 +1,5 @@
 function [min_value, max_value, avg_speed] = velocity_range(fourier_order, solution, keyframe_list)
+  % velocity_range  Get the approx. maximum and minimum velocity during a range of time.
   fourier_size = 2 * fourier_order + 1;
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;

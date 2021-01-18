@@ -1,6 +1,3 @@
-% octave only
-pkg load optim;
-
 % - **曲线路径规划**：给定一个双轮差速驱动机器人，和路径的起止点，实现机器人的曲线路径规划，包括轨迹规划、速度规划等；
 %   - 输入：
 %     - 机器人参数，如大小、轮半径、左右轮的轮距，最大/最小速度；
@@ -18,13 +15,10 @@ pkg load optim;
 
 global vel_bound end_point_vel end_point_theta;
 
-% Get Input from user
+%%% UI 相关内容
+%% 读取用户输入
 geometry = [1, 1];
 geometry = input('geometry (e.g. [x, y]): ');
-wheel_radius = 0.05;
-wheel_radius = input('radius of the wheel: ');
-wheel_distance = 1;
-wheel_distance = input('distance between two wheels: ');
 vel_bound = [0.8, 1.2];
 vel_bound = input('maximum velocity: ');
 vel_bound = [0, vel_bound];
@@ -41,6 +35,7 @@ end_point_vel = [cos(end_point_theta) * end_point_vel, sin(end_point_theta) * en
 
 figure(1);
 
+% 设置障碍的回调函数
 function set_obstacle_cb(h, ~)
   global is_obstacle obstacle obstacle_done;
   if obstacle_done
@@ -58,6 +53,7 @@ function set_obstacle_cb(h, ~)
   plot(pos(1, 1), pos(1, 2), 'ro');
 endfunction
 
+% 设定起点和终点的回调函数
 function set_start_end_cb(h, ~)
   global start_or_end start_point end_point start_end_done;
   if start_end_done
@@ -74,24 +70,7 @@ function set_start_end_cb(h, ~)
   plot(pos(1, 1), pos(1, 2), 'bo');
 endfunction
 
-function product = cross2d(vec1, vec2)
-  product = vec1(1) * vec2(2) - vec1(2) * vec2(1);
-endfunction
-
-function result = is_intersected(seg_a, seg_b)
-  if min(seg_a(:, 1)) <= max(seg_b(:, 1)) && ...
-     min(seg_b(:, 1)) <= max(seg_a(:, 1)) && ...
-     min(seg_a(:, 2)) <= max(seg_b(:, 2)) && ...
-     min(seg_b(:, 2)) <= max(seg_a(:, 2)) && ...
-     (cross2d(seg_a(1, :) - seg_b(1, :), seg_b(2, :) - seg_b(1, :)) * ...
-      cross2d(seg_a(2, :) - seg_b(1, :), seg_b(2, :) - seg_b(1, :)) <= 0)
-    result = logical(1);
-  else
-    result = logical(0);
-  endif
-endfunction
-
-% Initialize graphical user interface
+% 初始化用户界面
 grid on; hold on;
 xlabel('X-Y Plane');
 axis([-10 10 -10 10]);
@@ -99,8 +78,11 @@ global is_obstacle obstacle obstacle_done;
 obstacle = zeros(2);
 is_obstacle = logical(0);
 obstacle_done = logical(0);
+
+% 设置障碍
 set(gcf, 'WindowButtonDownFcn', @set_obstacle_cb);
 
+% 等待用户完成
 disp('Start obstacle setting.');
 while obstacle_done ~= logical(1)
   drawnow;
@@ -108,13 +90,16 @@ endwhile
 disp('Done obstacle setting.');
 obstacle_vec = [(obstacle(2, 1) - obstacle(1, 1)), (obstacle(2, 2) - obstacle(1, 2))];
 
+% 设定起止点
 global start_or_end start_point end_point start_end_done;
 start_or_end = logical(0);
 start_point = zeros(1, 2);
 end_point = zeros(1, 2);
 start_end_done = logical(0);
+
 set(gcf, 'WindowButtonDownFcn', @set_start_end_cb);
 
+% 等待用户完成
 disp('Start start and end point setting.');
 while start_end_done ~= logical(1)
   drawnow;
@@ -126,31 +111,28 @@ drawnow;
 
 global keyframe_list;
 
+% 初始化参数
 fourier_order = 3;
 fourier_size = 2 * fourier_order + 1;
+% 最小化目标相对位移的求道阶数
+% 即:
+%   1 -> minimum speed
+%   2 -> minimum acceleration
+%   3 -> minimum jerk
+%   4 -> minimum snap
 der_order = 2;
 time_idx = 3;
 start_point = [start_point(1, :), start_point_theta, start_point_vel, 0, 0];
 end_point = [end_point(1, :), end_point_theta, end_point_vel, 0, 0];
 assumed_velocity = sum(vel_bound) / 2;
 
+% 设定安全距离
 safe_distance = norm(geometry) * 1.5;
-
-% First attemp
-
-%[keyframe_list, end_point_cond, dangerous_region] = init_plan(obstacle, 0, safe_distance, start_point, end_point, vel_bound, assumed_velocity);
-%[solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-%if verify(fourier_order, solution, keyframe_list, dangerous_region)
-%  plot_traj(fourier_order, solution, keyframe_list);
-%else
-%  [keyframe_list, end_point_cond, dangerous_region] = init_plan(obstacle, 1, safe_distance, start_point, end_point, vel_bound, assumed_velocity);
-%  [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-%endif
 
 global dangerous_region;
 
+% 主循环
 for cnt = 0 : 2
-  cnt
   control_point_list = obstacle_control_point(obstacle, safe_distance, start_point);
   dangerous_region = obstacle_control_point(obstacle, norm(geometry), start_point);
   [keyframe_list, end_point_cond] = init_plan( ...
@@ -160,24 +142,15 @@ for cnt = 0 : 2
     end_point, ...
     vel_bound, ...
     assumed_velocity);
-  %[solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
   [solution, _] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-  %plot_traj(fourier_order, solution, keyframe_list);
-  %drawnow;
   [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list)
   if verify(fourier_order, solution, keyframe_list, dangerous_region)
-    %if (max_vel + min_vel) > sum(vel_bound)
     if max_vel > vel_bound(2)
       keyframe_list(:, 3) *= max_vel / vel_bound(2);
       for k = 1 : 5
-        %[solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
         [solution, _] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
-        %plot_traj(fourier_order, solution, keyframe_list);
-        %drawnow;
         [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list)
-        %if (max_vel + min_vel) > sum(vel_bound)
         if max_vel > vel_bound(2)
-          %keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
           keyframe_list(:, 3) *= max_vel / vel_bound(2) * 1.05;
         else
           break;
@@ -188,7 +161,6 @@ for cnt = 0 : 2
         [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
         for k = 1 : 5
           if max_vel > vel_bound(2)
-            %keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
             keyframe_list(:, 3) *= max_vel / vel_bound(2) * 1.05;
           else
             break;
@@ -212,6 +184,8 @@ plot_traj(fourier_order, solution, keyframe_list);
 
 global current_time current_pos current_vel current_stage;
 
+% 改变终点实时规划新路径
+% boilerplot of main loop {{{
 function change_end_point_cb(h, ~)
   global start_point end_point obstacle;
   global current_time current_pos current_vel current_stage;
@@ -243,7 +217,6 @@ function change_end_point_cb(h, ~)
     end_point_cond = [start_point; end_point];
     old_keyframe_list = keyframe_list;
     for cnt = 0 : size(old_keyframe_list, 1) - 1 - current_stage
-      %keyframe_list = zeros(size(keyframe_list, 1) - current_stage + 1, 3);
       keyframe_list = zeros(cnt + 2, 3);
       keyframe_list(:, 1 : 2) = [start_point(1 : 2); old_keyframe_list(current_stage + 1 : current_stage + cnt, 1 : 2); end_point(1 : 2);];
       keyframe_list(1, 3) = 0;
@@ -253,16 +226,12 @@ function change_end_point_cb(h, ~)
       [solution, _] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
       [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
       if verify(fourier_order, solution, keyframe_list, dangerous_region)
-        %if (max_vel + min_vel) > sum(vel_bound)
         if max_vel > vel_bound(2)
-          %keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
           keyframe_list(:, 3) *= max_vel / vel_bound(2);
           for k = 1 : 3
             [solution, _] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
             [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list)
-            %if (max_vel + min_vel) > sum(vel_bound)
             if max_vel > vel_bound(2)
-              %keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
               keyframe_list(:, 3) *= max_vel / vel_bound(2);
             else
               break;
@@ -273,7 +242,6 @@ function change_end_point_cb(h, ~)
             [min_vel, max_vel, avg_speed] = velocity_range(fourier_order, solution, keyframe_list);
             for k = 1 : 3
               if max_vel > vel_bound(2)
-                %keyframe_list(:, 3) *= (max_vel + min_vel) / sum(vel_bound);
                 keyframe_list(:, 3) *= max_vel / vel_bound(2);
               else
                 break;
@@ -377,3 +345,4 @@ for i = 1 : keyframe_cnt - 1
   hold off;
 endfor
 hold off;
+% }}}

@@ -1,15 +1,41 @@
 classdef trigonometric
+  % trigonometric is a trigonometric function class, which is denoted as
+  %     (+-) A * sin/cos(w * x + p) + d
+  % it implents following properties and methods.
+  %
+  %   PROPERTIES
+  %     func_type_indicator: a complex number to indicate the sin/cos/-sin/-cos of the function.
+  %       1 + 0i -> sin
+  %       0 + 1i -> cos
+  %      -1 + 0i -> -sin
+  %       0 - 1i -> -cos
+  %     amplitude: A (always greater than 0)
+  %     angular_frequency: w
+  %     phase_shift: p
+  %     vertical_shift: d
+  %     period: T = 2 * pi / w
+  %     sign
+  %     func: function like sin(x) or cos(x)
+  %     is_sin
+  %     is_cos
+  %
+  %   METHODS:
+  %     change_amplitude(new_A): return a instance of trigonometric class with differenct amplitude
+  %     value(x): return the value of the trigonometric function base on input x
+  %     derivative: return the derivative of current trigonometric function object.
+  %     integral: return the undefinite integral of current trigonometric function object.
+
   properties (GetAccess=public, SetAcess=private)
-    func_type_indicator
-    amplitude
-    angular_frequency
-    phase_shift
-    vertical_shift
+    func_type_indicator % a complex number to indicate the sin/cos/-sin/-cos of the function. (1 + 0i -> sin, 0 + 1i -> cos, -1 + 0i -> -sin, 0 - 1i -> -cos)
+    amplitude % A
+    angular_frequency % w
+    phase_shift % p
+    vertical_shift % d
   endproperties
   properties (Dependent)
-    period
+    period % T
     sign
-    func
+    func % function like sin(x) or cos(x)
     is_sin
     is_cos
   endproperties
@@ -25,6 +51,11 @@ classdef trigonometric
       period = 2 * pi / obj.angular_frequency;
     endfunction
     function f = change_amplitude(obj, new_amplitude)
+      % change_amplitude create a new instance with a differenct amplitude
+      %
+      %   f = change_amplitude(new_A)
+      %     will create a new trigonometric function instance
+      %     with amplitude set as new_A as f.
       f = trigonometric(obj.func_type_indicator, ...
                         new_amplitude, ...
                         obj.angular_frequency, ...
@@ -54,9 +85,17 @@ classdef trigonometric
       ret = ~obj.is_sin;
     endfunction
     function val = value(obj, x)
+      % value  Calculate value of this trigonometric function represented by the object.
+      %
+      %   val: double = value(x: double)
+      %     Return the value of the function.
       val = obj.sign * obj.amplitude * obj.func(obj.angular_frequency * x + obj.phase_shift) + polyval(obj.vertical_shift, x);
     endfunction
     function der_trig = derivative(obj)
+      % derivative  Calculate the derivative of current obj.
+      %
+      %   f_der = f.derivative
+      %     return a instance which is the derivative of the current trigonometric function.
       der_trig = trigonometric(obj.func_type_indicator * 1i, ...
                                obj.amplitude * obj.angular_frequency, ...
                                obj.angular_frequency, ...
@@ -64,6 +103,10 @@ classdef trigonometric
                                polyder(obj.vertical_shift));
     endfunction
     function int_trig = integral(obj)
+      % integral  Calculate the integral of current obj.
+      %
+      %   f_der = f.integral
+      %     return a instance which is the integral of the current trigonometric function.
       int_trig = trigonometric(obj.func_type_indicator / 1i, ...
                                obj.amplitude / obj.angular_frequency, ...
                                obj.angular_frequency, ...

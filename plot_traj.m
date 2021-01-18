@@ -1,4 +1,5 @@
 function plot_traj(fourier_order, coef_list, keyframe_list)
+  % plot_traj  Plot the trajectory
   fourier_size = 2 * fourier_order + 1;
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;

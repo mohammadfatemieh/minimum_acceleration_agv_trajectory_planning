@@ -29,3 +29,20 @@ function result = verify(fourier_order, coef_list, keyframe_list, dangerous_regi
     endfor
   endfor
 endfunction
+
+function product = cross2d(vec1, vec2)
+  product = vec1(1) * vec2(2) - vec1(2) * vec2(1);
+endfunction
+
+function result = is_intersected(seg_a, seg_b)
+  if min(seg_a(:, 1)) <= max(seg_b(:, 1)) && ...
+     min(seg_b(:, 1)) <= max(seg_a(:, 1)) && ...
+     min(seg_a(:, 2)) <= max(seg_b(:, 2)) && ...
+     min(seg_b(:, 2)) <= max(seg_a(:, 2)) && ...
+     (cross2d(seg_a(1, :) - seg_b(1, :), seg_b(2, :) - seg_b(1, :)) * ...
+      cross2d(seg_a(2, :) - seg_b(1, :), seg_b(2, :) - seg_b(1, :)) <= 0)
+    result = logical(1);
+  else
+    result = logical(0);
+  endif
+endfunction

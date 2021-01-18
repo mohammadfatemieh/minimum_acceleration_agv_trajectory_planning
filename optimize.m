@@ -1,4 +1,9 @@
 function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound)
+  % optimize  Optimize the time distribution for each segment.
+  %
+  %   [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe_list, vel_bound)
+  %     Return the optimal time distribution that minimize the target function
+  %     (see bottom of optimize.m)
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;
   tolr = 1e-3;
@@ -24,7 +29,6 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     return;
   endif
 
-  tic;
   g(:, 1) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
   s(:, 1) = step_len * g(:, 1);
   keyframe_list(:, time_idx) += prefix_sum(s(:, 1));
@@ -32,14 +36,12 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
   [solution, cur_value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound);
   [min_vel, max_vel] = velocity_range(fourier_order, solution, keyframe_list);
   cur_value = (min_vel - vel_bound(1))^2 + (max_vel - vel_bound(2))^2;
-  % cur_value = max_vel - min_vel;
   g(:, 2) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
   y(:, 1) = g(:, 2) - g(:, 1);
   rho(1) = 1 / (y(:, 1)' * s(:, 1));
-  toc;
 
+  % quasi-Newton method, BFGS algorithm
   for k = 2 : m
-    tic;
     alpha = zeros(1, m);
     beta = zeros(1, m);
     q = g(:, k);
@@ -66,7 +68,6 @@ function [solution, keyframe_list] = optimize(fourier_order, der_order, keyframe
     g(:, k + 1) = gradient(fourier_order, der_order, der_len, keyframe_list, end_point_cond, vel_bound, cur_value);
     y(:, k) = g(:, k + 1) - g(:, k);
     rho(k) = 1 / (y(:, k)' * s(:, k));
-    toc;
   endfor
 
   plot_traj(fourier_order, solution, keyframe_list);

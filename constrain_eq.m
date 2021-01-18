@@ -1,4 +1,5 @@
 function [mat, vec] = constrain_eq(fourier_order, keyframe_list, vel_cond, acc_cond)
+  % constrain_eq  Return the equality constrain in the form of [A, b]
 
   x_idx = 1;
   y_idx = 2;
@@ -7,7 +8,7 @@ function [mat, vec] = constrain_eq(fourier_order, keyframe_list, vel_cond, acc_c
   mat = []; % A
   vec = []; % b
 
-  % For x and y components
+  % For both x and y components
   for idx = 1 : 2
     
     %%%%%%%%%%
@@ -34,6 +35,15 @@ function [mat, vec] = constrain_eq(fourier_order, keyframe_list, vel_cond, acc_c
     acc_f = vel_f.derivative;
     pos_mat = [];
     % position
+    % At every keyframe, we need to let the position of the AGV to be exactly the same as the designated one.
+    % Therefore, we need A and b to be like
+    % A = 
+    %   [ pos_f_1(t0) ], 0, ...
+    %   [ pos_f_1(t1) ], 0, ...
+    %   0, ...        0, [ pos_f_2(t1) ], 0, ...
+    %   0, ...        0, [ pos_f_2(t2) ], 0, ...
+    %   ...
+    % b = [x(t0), x(t1), x(t1), x(t2), ...]
     for i = 1 : keyframe_cnt - 1
       pos_f = fourier(fourier_order, [keyframe_list(i, time_idx), keyframe_list(i + 1, time_idx)]);
       pos_blk = zeros(2, fourier_size);
@@ -43,6 +53,9 @@ function [mat, vec] = constrain_eq(fourier_order, keyframe_list, vel_cond, acc_c
       pos_mat = blkdiag(pos_mat, pos_blk);
     endfor
     % velocity
+    % We want to have smooth transition at the keyframe point, therefore for each row
+    % ..., 0, [ vel_f_1(t1) ], [ -vel_f_2(t1) ], 0, ...
+    % and corresponding row in b should be 0
     vel_mat = zeros(1, fourier_size * (keyframe_cnt - 1));
     vel_mat(1 : fourier_size) = vel_f.value(keyframe_list(1, time_idx));
     acc_mat = zeros(1, fourier_size * (keyframe_cnt - 1));

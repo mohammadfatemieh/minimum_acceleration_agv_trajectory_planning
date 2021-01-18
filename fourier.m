@@ -1,4 +1,15 @@
 classdef fourier
+  % fourier  a class implement a basic Fourier-Euler basis of function on an interval
+  %
+  %   PROPERTIES
+  %     order: order of the basis
+  %     boundary: [left: double, right: double]
+  %     series: orderx2 cell, contains trigonometric function or double
+  %     amplitude: return 1x(1 + 2 * order) array, each denote the amplitude of a base
+  %
+  %   METHODS
+  %     base(n, type): get the specified base with order n and type (0 -> cos, 1 -> sin)
+  %     square_int_value
   properties (GetAccess=public, SetAcess=public)
     order
     boundary
@@ -48,6 +59,19 @@ classdef fourier
       endfor
     endfunction
     function val = square_int_value(obj, cur_x, nxt_x)
+      % square_int_value  First calculate the Descartes product of two same basis,
+      %                   then integrate it with know lower and upper limit
+      %
+      %   val = square_int_value(cur_x, nxt_x)
+      %                         1 cos(x) sin(x) cos(2x) sin(2x)
+      %            ------------------------------------------
+      %     1      |            0 0      0      0       0      
+      %     cos(x) |            0 c^2(x) 0      0       0      
+      %     sin(x) | integrate( 0 0      s^2(x) 0       0      ) from cur_x to nxt_x
+      %     cos(2x)|            0 0      0      c^2(2x) 0      
+      %     sin(2x)|            0 0      0      0       s^2(2x)
+      %     
+      %     any only return the diagonal.
       val = zeros(1, 2 * obj.order + 1);
       val(1) = obj.series{1, 1};
       for n = 1 : obj.order
@@ -110,6 +134,13 @@ classdef fourier
       endfor
     endfunction
     function scale_obj = scale(obj, coeff)
+      % scale  Change the amplitude of each one base.
+      %
+      %   scaled_fourier = f.scale(coeff)
+      %     coef  an array with size 1x(1 + 2 * order)
+      %     Return a fourier object with each base have its amplitude multiplied
+      %     by a number in coeff. This number is specified as
+      %       [1, cos(x), sin(x), cos(2x), sin(2x), ...]
       scale_obj = obj;
       scale_obj.series{1, 1} *= coeff(1);
       for n = 1 : obj.order

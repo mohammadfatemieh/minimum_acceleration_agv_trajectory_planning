@@ -1,4 +1,5 @@
 function [solution, value] = solve(fourier_order, der_order, keyframe_list, end_point_cond, vel_bound)
+  % solve  give a trajectory which pass all points of the keyframe with minimum acceleration
   fourier_size = 2 * fourier_order + 1;
   keyframe_cnt = size(keyframe_list, 1);
   time_idx = 3;

@@ -1,4 +1,5 @@
 function control_point_list  = obstacle_control_point(obstacle, safe_distance, start_point)
+  % control_point_list  Generate control point list from obstacle, safe_distance and start/end point.
   obstacle_vec = [(obstacle(2, 1) - obstacle(1, 1)), (obstacle(2, 2) - obstacle(1, 2))];
   start_obstacle_vec = [(start_point(1) - obstacle(1, 1)), (start_point(2) - obstacle(1, 2))];
   start_cross_obstacle = cross2d(start_obstacle_vec, obstacle_vec);
